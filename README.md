@@ -29,13 +29,6 @@ $ apt-get update
 $ apt-get install git gcc make ruby ruby-dev libpam0g-dev libmariadb-client-lgpl-dev libmysqlclient-dev
 $ gem install fpm
 ```
-Ubuntu 14.04
-```console
-$ apt-get update
-$ apt-get install git gcc make ruby ruby-dev libpam0g-dev libmariadbclient-dev
-$ gem install fpm
-```
-
 
 ### Copy git repo
 ```console
@@ -59,14 +52,6 @@ Ubuntu 16.04
 $ apt-get install libmunge-dev libmunge2 munge
 $ systemctl enable munge
 $ systemctl start munge
-```
-
-Ubuntu 14.04
-```console
-$ apt-get install libmunge-dev libmunge2 munge
-$ create-munge-key
-$ update-rc.d munge enable
-$ service munge start
 ```
 
 ### Test munge
@@ -96,30 +81,42 @@ flush privileges;
 exit
 ```
 
-Ubuntu 14.04
-```console
-$ apt-get install mariadb-server
-$ update-rc.d mysql enable
-$ service mysql start
-$ mysql -u root
-create database slurm_acct_db;
-create user 'slurm'@'localhost';
-set password for 'slurm'@'localhost' = password('slurmdbpass');
-grant usage on *.* to 'slurm'@'localhost';
-grant all privileges on slurm_acct_db.* to 'slurm'@'localhost';
-flush privileges;
-exit
-```
-
 ### Download, build, and install Slurm
 Download tar.bz2 from https://www.schedmd.com/downloads.php to /storage
+
+```sh
+# json-c
+git clone --depth 1 --single-branch -b json-c-0.15-20200726 https://github.com/json-c/json-c.git json-c
+cd json-c
+cmake .
+make
+sudo make install
+export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig/:$PKG_CONFIG_PATH
+cd ..
+
+# http-paser
+git clone --depth 1 --single-branch -b v2.9.4 https://github.com/nodejs/http-parser.git http_parser-c
+cd http_parser
+make
+sudo make install
+cd ..
+
+# libjwt
+git clone --depth 1 --single-branch -b v1.12.0 https://github.com/benmcollins/libjwt.git libjwt
+cd libjwt
+autoreconf --force --install
+./configure --prefix=/usr/local
+make -j
+sudo make install
+cd ..
+```
 
 ```console
 $ cd /storage
 $ wget https://download.schedmd.com/slurm/slurm-17.11.12.tar.bz2
 $ tar xvjf slurm-17.11.12.tar.bz2
 $ cd slurm-17.11.12
-$ ./configure --prefix=/tmp/slurm-build --sysconfdir=/etc/slurm --enable-pam --with-pam_dir=/lib/x86_64-linux-gnu/security/ --without-shared-libslurm
+$ ./configure --prefix=/tmp/slurm-build --sysconfdir=/etc/slurm --enable-pam --with-pam_dir=/lib/x86_64-linux-gnu/security/ --without-shared-libslurm --with-jwt=/usr/local/ --with-http-parser=/usr/local/
 $ make
 $ make contrib
 $ make install
@@ -137,34 +134,21 @@ Copy into place config files from this repo which you've already cloned into /st
 $ cd /storage
 $ cp ubuntu-slurm/slurmdbd.service /etc/systemd/system/
 $ cp ubuntu-slurm/slurmctld.service /etc/systemd/system/
-```
-
-Ubuntu 14.04
-```console
-Copy into place config files from this repo which you've already cloned into /storage
-$ cd /storage
-$ cp ubuntu-slurm/slurmd.init /etc/init.d/slurmd
-$ cp ubuntu-slurm/slurm.default /etc/default/slurm
-$ chmod 755 /etc/init.d/slurmd
-$ cp ubuntu-slurm/slurmdbd.init /etc/init.d/slurmdbd
-$ chmod 755 /etc/init.d/slurmdbd
+$ cp ubuntu-slurm/slurmrestd.service /etc/systemd/system/
 ```
 
 Ubuntu 16.04
 ```console
+$ mkdir /etc/slurm
+$ cp /storage/ubuntu-slurm/slurm.conf /etc/slurm/slurm.conf
+
 $ systemctl daemon-reload
 $ systemctl enable slurmdbd
 $ systemctl start slurmdbd
 $ systemctl enable slurmctld
 $ systemctl start slurmctld
-```
-
-Ubuntu 14.04
-```console
-$ update-rc.d slurmdbd start 20 3 4 5 . stop 20 0 1 6 .
-$ update-rc.d slurmd start 20 3 4 5 . stop 20 0 1 6 .
-$ service slurmdbd start
-$ service slurmd start
+$ systemctl enable slurmrestd
+$ systemctl start slurmrestd
 ```
 
 ## Create initial slurm cluster, account, and user.
@@ -194,12 +178,6 @@ Ubuntu 16.04
 ```console
 $ systemctl enable munge
 $ systemctl restart munge
-```
-
-Ubuntu 14.04
-```console
-$ update-rc.d munge enable
-$ service munge start
 ```
 
 ### Test munge
@@ -235,15 +213,6 @@ Ubuntu 16.04
 $ cp /storage/ubuntu-slurm/slurmd.service /etc/systemd/system/
 $ systemctl enable slurmd
 $ systemctl start slurmd
-```
-
-Ubuntu 14.04
-```console
-$ cp /storage/ubuntu-slurm/slurmd.init /etc/init.d/slurmd
-$ cp /storage/ubuntu-slurm/slurm.default /etc/default/slurm
-$ chmod 755 /etc/init.d/slurmd
-$ update-rc.d slurmd start 20 3 4 5 . stop 20 0 1 6 .
-$ service slurmd start
 ```
 
 ## Test Slurm
